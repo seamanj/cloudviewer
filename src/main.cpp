@@ -45,12 +45,10 @@ void separate_barbell_from_cloud(const PointCloud* cloud_in,  PointCloud* cloud_
         auto index0 = rand() % num_points;
         auto index1 = rand() % num_points;
         auto v0 = pc.at(index0).head<3>();
-//        std::cout << "v0 : " << v0 << std::endl;
         auto v1 = pc.at(index1).head<3>();
-//        std::cout << "v1 : " << v1 << std::endl;
+
         auto line = (v1 - v0).normalized();
-//        std::cout << "line.norm : " << line.norm() << std::endl;
-        if( abs(line.dot(Eigen::Vector3f(1.f, 0.f, 0.f))) < 0.99 ) // tj : assuming the barbell is almost horizontal
+        if( abs(line.dot(Eigen::Vector3f(1.f, 0.f, 0.f))) < 0.90 ) // tj : assuming the barbell is almost horizontal
             continue;
 
 
