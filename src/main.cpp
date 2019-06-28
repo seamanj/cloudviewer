@@ -26,14 +26,41 @@ void load_depth_frame_into_cloud(const DepthFrame& frame, PointCloud* cloud, Poi
 }
 
 
-void separate_barbell_from_cloud(const PointCloud* cloud_in,  PointCloud* cloud_out, PointXYZCloudEntity* cloud_entiry)
+void filter_cloud(Eigen::Vector3f *barbell, const PointCloud* cloud_in, PointCloud* cloud_out, PointXYZCloudEntity* cloud_entiry)
+{
+
+    auto pc = cloud_in->points;
+    auto& pc_out = cloud_out->points;
+    pc_out.clear();
+
+    auto v0 = barbell[0];
+    auto v1 = barbell[1];
+
+    auto line = (v1 - v0).normalized();
+
+    float threshold = 200.f / 1000.f;
+    for(int i = 0; i < pc.size(); ++i)
+    {
+         auto p = pc.at(i).head<3>();
+         auto distance_to_line = (p - v0).cross(line).norm();
+         if( distance_to_line < threshold)
+         {
+             pc_out.emplace_back(pc.at(i));
+         }
+    }
+    cloud_entiry->refresh_geometry();
+    std::cout << "after filter: " << pc_out.size() << std::endl;
+
+}
+
+void separate_barbell_from_cloud(const PointCloud* cloud_in,  PointCloud* cloud_out, PointXYZCloudEntity* cloud_entiry, Eigen::Vector3f *barbell)
 {
     auto pc = cloud_in->points;
     auto& pc_out = cloud_out->points;
     pc_out.clear();
 
     auto num_points = pc.size();
-    const int max_iter = 3000;
+    const int max_iter = 1000;
     std::vector<int> indices_inliers;
     int max_num_inliers = 0;
 
@@ -41,7 +68,7 @@ void separate_barbell_from_cloud(const PointCloud* cloud_in,  PointCloud* cloud_
 
     for(int i = 0; i < max_iter; ++i)
     {
-        std::cout << "iteration:" << i << std::endl;
+//        std::cout << "iteration:" << i << std::endl;
         auto index0 = rand() % num_points;
         auto index1 = rand() % num_points;
         auto v0 = pc.at(index0).head<3>();
@@ -79,6 +106,8 @@ void separate_barbell_from_cloud(const PointCloud* cloud_in,  PointCloud* cloud_
         {
             max_num_inliers = num_inliers;
             indices_inliers_temp.swap(indices_inliers);
+            barbell[0] = v0;
+            barbell[1] = v1;
         }
     }// for
     auto cloud_iterator = cloud_out->points.begin();
@@ -100,6 +129,7 @@ int main(int argc, char** argv) {
 
     auto white = Color::Rgb(255, 255, 255);
     auto red = Color::Rgb(255, 0, 0);
+    auto green = Color::Rgb(0, 255, 0);
 
     auto axes = std::make_shared<AxesEntity>();
     scene.add_entity(axes);
@@ -115,6 +145,14 @@ int main(int argc, char** argv) {
     scene.add_entity(point_cloud_entity_barbell);
 
 
+    auto point_cloud_filtered = std::make_shared<PointCloud>();
+    auto point_cloud_entity_filtered = std::make_shared<PointXYZCloudEntity>(point_cloud_filtered);
+    point_cloud_entity_filtered->set_color(green);
+    scene.add_entity(point_cloud_entity_filtered);
+
+
+
+
     std::ifstream ifs("/home/seamanj/Workspace/cloudviewer/recordings/1.dpv", std::ifstream::in);
     std::istream &is = ifs;
     dpv_skip_header(&is);
@@ -128,6 +166,9 @@ int main(int argc, char** argv) {
     std::chrono::duration<float, std::milli> duration {0.0F};
 
 //    dpv_read_depth_frame(&is, &df);
+
+    Eigen::Vector3f barbell[2];
+    bool bFirstFrame = true;
     while(glfwWindowShouldClose(window) != 1) {
         update(scene);
 
@@ -153,7 +194,16 @@ int main(int argc, char** argv) {
                 duration = df.timestamp - last_frame;
             last_frame = df.timestamp;
             load_depth_frame_into_cloud(df, point_cloud.get(), point_cloud_entity.get());
-            separate_barbell_from_cloud(point_cloud.get(), point_cloud_barbell.get(), point_cloud_entity_barbell.get());
+            if( !bFirstFrame )
+            {
+                filter_cloud(barbell, point_cloud.get(), point_cloud_filtered.get(), point_cloud_entity_filtered.get());
+                separate_barbell_from_cloud(point_cloud_filtered.get(), point_cloud_barbell.get(), point_cloud_entity_barbell.get(), barbell );
+            }
+            else
+            {
+                separate_barbell_from_cloud(point_cloud.get(), point_cloud_barbell.get(), point_cloud_entity_barbell.get(), barbell);
+                bFirstFrame = false;
+            }
         }
         else {
             duration = std::chrono::duration<float, std::milli>::zero();
