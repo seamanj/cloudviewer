@@ -38,7 +38,7 @@ void filter_cloud(Eigen::Vector3f *barbell, const PointCloud* cloud_in, PointClo
 
     auto line = (v1 - v0).normalized();
 
-    float threshold = 200.f / 1000.f;
+    float threshold = 300.f / 1000.f;
     for(int i = 0; i < pc.size(); ++i)
     {
          auto p = pc.at(i).head<3>();
@@ -60,7 +60,7 @@ void separate_barbell_from_cloud(const PointCloud* cloud_in,  PointCloud* cloud_
     pc_out.clear();
 
     auto num_points = pc.size();
-    const int max_iter = 1000;
+    const int max_iter = 2000;
     std::vector<int> indices_inliers;
     int max_num_inliers = 0;
 
@@ -68,7 +68,7 @@ void separate_barbell_from_cloud(const PointCloud* cloud_in,  PointCloud* cloud_
 
     for(int i = 0; i < max_iter; ++i)
     {
-//        std::cout << "iteration:" << i << std::endl;
+        std::cout << "iteration:" << i << std::endl;
         auto index0 = rand() % num_points;
         auto index1 = rand() % num_points;
         auto v0 = pc.at(index0).head<3>();
@@ -148,7 +148,7 @@ int main(int argc, char** argv) {
     auto point_cloud_filtered = std::make_shared<PointCloud>();
     auto point_cloud_entity_filtered = std::make_shared<PointXYZCloudEntity>(point_cloud_filtered);
     point_cloud_entity_filtered->set_color(green);
-    scene.add_entity(point_cloud_entity_filtered);
+//    scene.add_entity(point_cloud_entity_filtered);
 
 
 
